@@ -1,0 +1,34 @@
+name: build
+
+on:
+  push:
+    branches:
+    - main
+  pull_request:
+    branches:
+    - main
+
+jobs:
+  test-publish:
+    runs-on: kubernetes-runner
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Run Helm Publish Action
+      id: helm-publish
+      uses: ./helm-publish
+      with:
+        chart_path: ./testdata/sample-chart
+        repo_host: ${{ secrets.HARBOR_HOST }}
+        repo_user: ${{ secrets.HARBOR_USER }}
+        repo_password: ${{ secrets.HARBOR_PASSWORD }}
+        version: '0.0.2'
+    - name: Assert Action Status
+      uses: nick-fields/assert-action@1e012cc9f1bf73ccc96470b56c8887478c647e8a # v1
+      with:
+        expected: success
+        actual: ${{ steps.helm-publish.outcome }}
+      continue-on-error: true

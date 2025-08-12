@@ -1,0 +1,63 @@
+name: 'Helm Publish'
+description: 'Publish a Helm chart to a container registry.'
+inputs:
+  repo_host:
+    description: 'URL of target container registry.'
+    required: true
+    default: ''
+  repo_user:
+    description: 'Username for the container registry.'
+    required: false
+    default: ''
+  repo_password:
+    description: 'Password for the container registry.'
+    required: false
+    default: ''
+  chart_path:
+    description: 'Path to the chart dir.'
+    required: false
+    default: './charts'
+  chart_output_path:
+    description: 'Path to the chart dir.'
+    required: false
+    default: '${{ github.workspace }}/chart.tgz'
+  version:
+    description: 'Override the Helm chart version.'
+    required: false
+    default: ''
+  args:
+    description: 'Additional arguments for helm push.'
+    required: false
+    default: ''
+runs:
+  using: 'composite'
+  steps:
+    - name: Install Helm
+      uses: azure/setup-helm@v4.3.0
+    
+    - name: Package Helm chart
+      shell: bash
+      run: |
+        echo "::group::Packaging Helm chart"
+        echo "Packaging Helm chart from path: ${{ inputs.chart_path }}"
+        if [ -z "${{ inputs.version.override }}" ]; then
+          helm package --dependency-update "${{ inputs.chart_path }}"
+        else
+          helm package --dependency-update "${{ inputs.chart_path }}" --version "${{ inputs.version }}"
+        fi
+        CHART_FILE=$(ls -t *.tgz | head -n1)
+        echo "✅ Packaged chart file: $CHART_FILE"
+        mv "$CHART_FILE" "${{ inputs.chart_output_path }}"
+        echo "📦 Chart moved to: ${{ inputs.chart_output_path }}"
+        echo "::endgroup::"
+      
+    - name: Login to registry
+      shell: bash
+      if: ${{ inputs.repo_user != '' && inputs.repo_password != '' }}
+      run: |
+        echo '${{ inputs.repo_password }}' | helm registry login -u '${{ inputs.repo_user }}' --password-stdin '${{ inputs.repo_host }}'
+   
+    - name: Publish Helm chart to Harbor
+      shell: bash
+      run: |
+        helm push '${{ inputs.chart_output_path }}' '${{ inputs.repo_host }}' "${{ inputs.args }}"

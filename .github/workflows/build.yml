@@ -16,7 +16,6 @@ jobs:
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
-
     - name: Run Helm Publish Action
       id: helm-publish
       uses: ./helm-publish
@@ -32,3 +31,16 @@ jobs:
         expected: success
         actual: ${{ steps.helm-publish.outcome }}
       continue-on-error: true
+
+  check-workflow-status:
+    runs-on: kubernetes-runner
+    permissions:
+      contents: read
+      actions: read
+    steps:
+    - name: Check Workflow Status
+      id: check-workflow-status
+      uses: eidp/actions-common/check-workflow-status@v0
+      with:
+        jobs: 'test-publish'
+        github-token: ${{ secrets.GITHUB_TOKEN }}

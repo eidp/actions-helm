@@ -1,0 +1,11 @@
+repos:
+- repo: ssh://git@github.com/eidp/actions-common.git
+  rev: 0a691850a1bff68d3365c689926f885287ff650a
+  hooks:
+  - id: generate-workflow-docs
+  - id: generate-action-docs
+
+- repo: https://github.com/codespell-project/codespell
+  rev: v2.4.1
+  hooks:
+  - id: codespell

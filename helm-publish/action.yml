@@ -40,7 +40,7 @@ runs:
       run: |
         echo "::group::Packaging Helm chart"
         echo "Packaging Helm chart from path: ${{ inputs.chart_path }}"
-        if [ -z "${{ inputs.version.override }}" ]; then
+        if [ -z "${{ inputs.version }}" ]; then
           helm package --dependency-update "${{ inputs.chart_path }}"
         else
           helm package --dependency-update "${{ inputs.chart_path }}" --version "${{ inputs.version }}"

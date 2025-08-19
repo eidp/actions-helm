@@ -40,7 +40,7 @@ jobs:
     steps:
     - name: Check Workflow Status
       id: check-workflow-status
-      uses: eidp/actions-common/check-workflow-status@v0
+      uses: eidp/actions-common/check-workflow-status@51af9cb861670a53ad41b7abacedebdd5b07c3f9 # v0
       with:
         jobs: 'test-publish'
         github-token: ${{ secrets.GITHUB_TOKEN }}

@@ -1,6 +1,6 @@
 repos:
 - repo: ssh://git@github.com/eidp/actions-common.git
-  rev: 0a691850a1bff68d3365c689926f885287ff650a
+  rev: main
   hooks:
   - id: generate-workflow-docs
   - id: generate-action-docs

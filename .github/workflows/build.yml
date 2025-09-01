@@ -22,7 +22,7 @@ jobs:
       with:
         chart_path: ./testdata/sample-chart
         repo_host: ${{ secrets.HARBOR_HOST }}/actions-helm/charts
-        repo_user: ${{ secrets.HARBOR_USER }}
+        repo_user: ${{ secrets.HARBOR_USERNAME }}
         repo_password: ${{ secrets.HARBOR_PASSWORD }}
         version: '0.0.2'
         app-version: '0.0.2'

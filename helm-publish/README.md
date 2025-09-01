@@ -13,6 +13,7 @@ Publish a Helm chart to a container registry.
 |    `chart_path`   |       Path to the chart dir.       |   No   |             `./charts`            |
 |`chart_output_path`|       Path to the chart dir.       |   No   |`${{ github.workspace }}/chart.tgz`|
 |     `version`     |  Override the Helm chart version.  |   No   |                 ``                |
+|   `app-version`   | Override the Helm chart appVersion.|   No   |                 ``                |
 |       `args`      | Additional arguments for helm push.|   No   |                 ``                |
 
 ## 📤 Outputs

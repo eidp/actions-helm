@@ -25,6 +25,10 @@ inputs:
     description: 'Override the Helm chart version.'
     required: false
     default: ''
+  app-version:
+    description: 'Override the Helm chart appVersion.'
+    required: false
+    default: ''
   args:
     description: 'Additional arguments for helm push.'
     required: false
@@ -40,11 +44,19 @@ runs:
       run: |
         echo "::group::Packaging Helm chart"
         echo "Packaging Helm chart from path: ${{ inputs.chart_path }}"
-        if [ -z "${{ inputs.version }}" ]; then
-          helm package --dependency-update "${{ inputs.chart_path }}"
-        else
-          helm package --dependency-update "${{ inputs.chart_path }}" --version "${{ inputs.version }}"
+
+        VERSION_ARG=""
+        if [ -n "${{ inputs.version }}" ]; then
+            VERSION_ARG="--version ${{ inputs.version }}"
         fi
+
+        APP_VERSION_ARG=""
+        if [ -n "${{ inputs.app-version }}" ]; then
+            APP_VERSION_ARG="--app-version ${{ inputs.app-version }}"
+        fi
+
+        helm package --dependency-update "${{ inputs.chart_path }}" $VERSION_ARG $APP_VERSION_ARG 
+
         CHART_FILE=$(ls -t *.tgz | head -n1)
         echo "✅ Packaged chart file: $CHART_FILE"
         mv "$CHART_FILE" "${{ inputs.chart_output_path }}"

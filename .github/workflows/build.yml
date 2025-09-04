@@ -11,11 +11,11 @@ on:
 jobs:
   test-publish-action:
     runs-on: kubernetes-runner
+    env:
+      CHART_VERSION: '0.0.2-build.${{ github.run_number }}'
     steps:
     - name: Checkout code
       uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
-      with:
-        fetch-depth: 0
     - name: Run Helm Publish Action
       id: helm-publish
       uses: ./helm-publish
@@ -24,8 +24,31 @@ jobs:
         repo_host: oci://${{ vars.HARBOR_HOST }}/charts
         repo_user: ${{ secrets.HARBOR_USERNAME }}
         repo_password: ${{ secrets.HARBOR_PASSWORD }}
-        version: '0.0.2-build.${{ github.run_number }}'
-        app-version: '0.0.2-build.${{ github.run_number }}'
+        version: '${{ env.CHART_VERSION }}'
+        app-version: '${{ env.CHART_VERSION }}'
+    - name: Verify published Chart
+      run: |
+        helm pull oci://${{ vars.HARBOR_HOST }}/charts/sample-chart --version ${{ env.CHART_VERSION }} --untar --untardir "${{ github.workspace }}/published"
+        PUBLISHED_CHART_VERSION=$(cat ${{ github.workspace }}/published/sample-chart/Chart.yaml | yq '.version')
+        PUBLISHED_APP_VERSION=$(cat ${{ github.workspace }}/published/sample-chart/Chart.yaml | yq '.appVersion')
+
+        if [[ "$PUBLISHED_CHART_VERSION" == "${{ env.CHART_VERSION }}" ]] && [[ "$PUBLISHED_APP_VERSION" == "${{ env.CHART_VERSION }}" ]]; then
+          echo "Chart promoted successfully."
+        else
+          echo "Chart is NOT published successfully"
+          exit 1
+        fi
+    - name: Cleanup published Chart
+      run: |
+        bash scripts/delete-chart.sh
+      env:
+        HARBOR_HOST: ${{ vars.HARBOR_HOST }}
+        HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
+        HARBOR_PASSWORD: ${{ secrets.HARBOR_PASSWORD }}
+        CHART_VERSION: ${{ env.CHART_VERSION }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        REPO_NAME: "charts%252Fsample-chart"
+
     - name: Assert Action Status
       uses: nick-fields/assert-action@aa0067e01f0f6545c31755d6ca128c5a3a14f6bf # v2
       with:
@@ -37,15 +60,19 @@ jobs:
     runs-on: kubernetes-runner
     needs: test-publish-action
     env:
-      RELEASE_VERSION: '0.0.2-release.${{ github.run_number }}'
+      CHART_VERSION: '0.0.2-release.${{ github.run_number }}'
+      IMAGE_VERSION: '1.16.0'
+      ADDITIONAL_IMAGE_VERSION: '${{ github.sha }}@sha256:${{ github.sha }}'
     steps:
+    - name: Checkout code
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
     - name: Promote Chart
       id: promote
       uses: ./promote
       with:
         chart: oci://${{ vars.HARBOR_HOST }}/charts/sample-chart
         source-version: '0.0.2-build.${{ github.run_number }}'
-        target-version: '${{ env.RELEASE_VERSION }}'
+        target-version: '${{ env.CHART_VERSION }}'
         patch-docker-image: 'true'
         target-docker-image-version: '1.16.0'
         custom-docker-image-patch-script: '${{ github.workspace }}/testdata/promote_custom_docker_image_patch.sh'
@@ -54,34 +81,27 @@ jobs:
         repo-password: ${{ secrets.HARBOR_PASSWORD }}
     - name: Verify Promote Chart
       run: |
-        helm pull oci://${{ vars.HARBOR_HOST }}/charts/sample-chart --version 0.0.2-release.${{ github.run_number }} --untar --untardir "${{ github.workspace }}/promoted"
-        CHART_VERSION=$(cat ${{ github.workspace }}/promoted/sample-chart/Chart.yaml | yq '.version')
-        IMAGE_VERSION=$(cat ${{ github.workspace }}/promoted/sample-chart/values.yaml | yq '.image.tag')
-        ADDITIONAL_IMAGE_VERSION=$(cat ${{ github.workspace }}/promoted/sample-chart/values.yaml | yq '.additionalImage.tag')
+        helm pull oci://${{ vars.HARBOR_HOST }}/charts/sample-chart --version ${{ env.CHART_VERSION }} --untar --untardir "${{ github.workspace }}/promoted"
+        PROMOTED_CHART_VERSION=$(cat ${{ github.workspace }}/promoted/sample-chart/Chart.yaml | yq '.version')
+        PROMOTED_IMAGE_VERSION=$(cat ${{ github.workspace }}/promoted/sample-chart/values.yaml | yq '.image.tag')
+        PROMOTED_ADDITIONAL_IMAGE_VERSION=$(cat ${{ github.workspace }}/promoted/sample-chart/values.yaml | yq '.additionalImage.tag')
 
-        if [[ "$CHART_VERSION" == "${{ env.RELEASE_VERSION }}" ]] && [[ "$IMAGE_VERSION" == "$CI_COMMIT_SHA@sha256:$CI_COMMIT_SHA" ]] && [[ "$ADDITIONAL_IMAGE_VERSION" == "$CI_COMMIT_SHA@sha256:$CI_COMMIT_SHA" ]]; then
+        if [[ "$PROMOTED_CHART_VERSION" == "${{ env.CHART_VERSION }}" ]] && [[ "$PROMOTED_IMAGE_VERSION" == "${{ env.IMAGE_VERSION }}" ]] && [[ "$PROMOTED_ADDITIONAL_IMAGE_VERSION" == "${{ env.ADDITIONAL_IMAGE_VERSION }}" ]]; then
           echo "Chart promoted successfully."
         else
           echo "Chart is NOT promoted successfully"
           exit 1
         fi
-
     - name: Cleanup Promoted Chart
       run: |
-        HARBOR_URL="https://$(echo ${{ vars.HARBOR_HOST }} | cut -d'/' -f1)"
-        HARBOR_CREDS=$(echo -n "${{ secrets.HARBOR_USERNAME }}:${{ secrets.HARBOR_PASSWORD }}" | base64)
-        REPO_NAME="charts%252Fsample-chart"
-        DIGEST=$(curl -s -k -X GET "$HARBOR_URL/api/v2.0/projects/${{ github.repository }}/repositories/$REPO_NAME/artifacts" \
-          -H "Authorization: Basic $HARBOR_CREDS" \
-          | jq -r 'if . == null then empty else .[] | select(.tags[]?.name == "'"${{ env.RELEASE_VERSION }}"'") | .digest end // empty')
-
-        echo "Digest for tag ${{ env.RELEASE_VERSION }}: $DIGEST"
-
-        # Delete the artifact
-        curl -s -k -X DELETE "$HARBOR_URL/api/v2.0/projects/${{ github.repository }}/repositories/$REPO_NAME/artifacts" \
-          -H "Authorization: Basic $HARBOR_CREDS" \
-          -H "Content-Type: application/json" \
-          -d '{"digest": "'"$DIGEST"'"}'
+        bash scripts/delete-chart.sh
+      env:
+        HARBOR_HOST: ${{ vars.HARBOR_HOST }}
+        HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
+        HARBOR_PASSWORD: ${{ secrets.HARBOR_PASSWORD }}
+        CHART_VERSION: ${{ env.CHART_VERSION }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        REPO_NAME: "charts%252Fsample-chart"
 
   check-workflow-status:
     runs-on: kubernetes-runner

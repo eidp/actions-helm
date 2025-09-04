@@ -9,6 +9,7 @@ This repository contains Helm specific actions.
 The following GitHub Actions are available in this repository:
 
 - [helm-publish](helm-publish/README.md)
+- [promote](promote/README.md)
 
 <!-- END ACTIONS -->
 

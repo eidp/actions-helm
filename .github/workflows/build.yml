@@ -9,7 +9,7 @@ on:
     - main
 
 jobs:
-  test-publish:
+  test-publish-action:
     runs-on: kubernetes-runner
     steps:
     - name: Checkout code
@@ -21,17 +21,67 @@ jobs:
       uses: ./helm-publish
       with:
         chart_path: ./testdata/sample-chart
-        repo_host: oci://${{ secrets.HARBOR_HOST }}/charts
+        repo_host: oci://${{ vars.HARBOR_HOST }}/charts
         repo_user: ${{ secrets.HARBOR_USERNAME }}
         repo_password: ${{ secrets.HARBOR_PASSWORD }}
-        version: '0.0.2'
-        app-version: '0.0.2'
+        version: '0.0.2-build.${{ github.run_number }}'
+        app-version: '0.0.2-build.${{ github.run_number }}'
     - name: Assert Action Status
       uses: nick-fields/assert-action@aa0067e01f0f6545c31755d6ca128c5a3a14f6bf # v2
       with:
         expected: success
         actual: ${{ steps.helm-publish.outcome }}
       continue-on-error: true
+
+  test-promote-action:
+    runs-on: kubernetes-runner
+    needs: test-publish-action
+    env:
+      RELEASE_VERSION: '0.0.2-release.${{ github.run_number }}'
+    steps:
+    - name: Promote Chart
+      id: promote
+      uses: ./promote
+      with:
+        chart: oci://${{ vars.HARBOR_HOST }}/charts/sample-chart
+        source-version: '0.0.2-build.${{ github.run_number }}'
+        target-version: '${{ env.RELEASE_VERSION }}'
+        patch-docker-image: 'true'
+        target-docker-image-version: '1.16.0'
+        custom-docker-image-patch-script: '${{ github.workspace }}/testdata/promote_custom_docker_image_patch.sh'
+        repo-host: oci://${{ vars.HARBOR_HOST }}/charts
+        repo-user: ${{ secrets.HARBOR_USERNAME }}
+        repo-password: ${{ secrets.HARBOR_PASSWORD }}
+    - name: Verify Promote Chart
+      run: |
+        helm pull oci://${{ vars.HARBOR_HOST }}/charts/sample-chart --version 0.0.2-release.${{ github.run_number }} --untar --untardir "${{ github.workspace }}/promoted"
+        CHART_VERSION=$(cat ${{ github.workspace }}/promoted/sample-chart/Chart.yaml | yq '.version')
+        IMAGE_VERSION=$(cat ${{ github.workspace }}/promoted/sample-chart/values.yaml | yq '.image.tag')
+        ADDITIONAL_IMAGE_VERSION=$(cat ${{ github.workspace }}/promoted/sample-chart/values.yaml | yq '.additionalImage.tag')
+
+        if [[ "$CHART_VERSION" == "${{ env.RELEASE_VERSION }}" ]] && [[ "$IMAGE_VERSION" == "$CI_COMMIT_SHA@sha256:$CI_COMMIT_SHA" ]] && [[ "$ADDITIONAL_IMAGE_VERSION" == "$CI_COMMIT_SHA@sha256:$CI_COMMIT_SHA" ]]; then
+          echo "Chart promoted successfully."
+        else
+          echo "Chart is NOT promoted successfully"
+          exit 1
+        fi
+
+    - name: Cleanup Promoted Chart
+      run: |
+        HARBOR_URL="https://$(echo ${{ vars.HARBOR_HOST }} | cut -d'/' -f1)"
+        HARBOR_CREDS=$(echo -n "${{ secrets.HARBOR_USERNAME }}:${{ secrets.HARBOR_PASSWORD }}" | base64)
+        REPO_NAME="charts%252Fsample-chart"
+        DIGEST=$(curl -s -k -X GET "$HARBOR_URL/api/v2.0/projects/${{ github.repository }}/repositories/$REPO_NAME/artifacts" \
+          -H "Authorization: Basic $HARBOR_CREDS" \
+          | jq -r 'if . == null then empty else .[] | select(.tags[]?.name == "'"${{ env.RELEASE_VERSION }}"'") | .digest end // empty')
+
+        echo "Digest for tag ${{ env.RELEASE_VERSION }}: $DIGEST"
+
+        # Delete the artifact
+        curl -s -k -X DELETE "$HARBOR_URL/api/v2.0/projects/${{ github.repository }}/repositories/$REPO_NAME/artifacts" \
+          -H "Authorization: Basic $HARBOR_CREDS" \
+          -H "Content-Type: application/json" \
+          -d '{"digest": "'"$DIGEST"'"}'
 
   check-workflow-status:
     runs-on: kubernetes-runner
@@ -43,5 +93,5 @@ jobs:
       id: check-workflow-status
       uses: eidp/actions-common/check-workflow-status@42dc9e7586ba7a3b7aa74b2f235b220edf7fea44 # v0
       with:
-        jobs: 'test-publish'
+        jobs: 'test-publish-action,test-promote-action'
         github-token: ${{ secrets.GITHUB_TOKEN }}

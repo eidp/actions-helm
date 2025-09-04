@@ -94,13 +94,13 @@ runs:
         CHART=$(echo "${{ inputs.chart }}" | tr '[:upper:]' '[:lower:]')
         echo "Pulling chart: $CHART"
         echo "Source version: ${{ inputs.source-version }}"
-        
+
         # Create working directory
         mkdir -p "${{ github.workspace }}/untarred"
-        
+
         # Pull chart
         helm pull "$CHART" --version "${{ inputs.source-version }}" --untar --untardir "${{ github.workspace }}/untarred"
-        
+
         # Get chart name from URL
         CHART_NAME=$(echo "$CHART" | awk -F/ '{print $NF}')
         echo "chart-name=$CHART_NAME" >> $GITHUB_ENV

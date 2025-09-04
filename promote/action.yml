@@ -212,7 +212,7 @@ runs:
 
         # Generate summary
         {
-          echo "# 🚀 Helm Chart Promoted & Published"
+          echo "# 🚀 Helm Chart Promoted"
           echo ""
           echo "## Chart Details"
           echo "- **Chart Name**: \`$CHART_NAME\`"
@@ -220,9 +220,6 @@ runs:
           echo "- **Target Version**: \`$TARGET_VERSION\`"
           echo "- **Source Chart**: \`$CHART_PATH\`"
           echo "- **Published to**: \`${{ inputs.repo-host }}\`"
-          echo ""
-          echo "## Resources"
-          echo "- [📦 Published Chart](${{ inputs.repo-host }})"
 
           echo ""
           echo "## Changes Made"
@@ -241,10 +238,6 @@ runs:
           if [ -n "${{ inputs.custom-docker-image-patch-script }}" ]; then
             echo "- 🔧 Custom patch script executed: \`${{ inputs.custom-docker-image-patch-script }}\`"
           fi
-
-          echo ""
-          echo "## Publication"
-          echo "- ✅ Chart published to registry: \`${{ inputs.repo-host }}\`"
         } >> $GITHUB_STEP_SUMMARY
 
         echo "::endgroup::"

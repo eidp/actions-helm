@@ -40,16 +40,6 @@ jobs:
           echo "Chart is NOT published successfully"
           exit 1
         fi
-    - name: Cleanup published Chart
-      run: |
-        bash scripts/delete-chart.sh
-      env:
-        HARBOR_HOST: ${{ vars.HARBOR_HOST }}
-        HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
-        HARBOR_PASSWORD: ${{ secrets.HARBOR_PASSWORD }}
-        CHART_VERSION: ${{ env.CHART_VERSION }}
-        GITHUB_REPOSITORY: ${{ github.repository }}
-        REPO_NAME: "charts%252Fsample-chart"
 
     - name: Assert Action Status
       uses: nick-fields/assert-action@aa0067e01f0f6545c31755d6ca128c5a3a14f6bf # v2
@@ -94,6 +84,20 @@ jobs:
           echo "Chart is NOT promoted successfully"
           exit 1
         fi
+  cleanup:
+    runs-on: kubernetes-runner
+    needs: test-promote-action
+    steps:
+    - name: Cleanup published Chart
+      run: |
+        bash scripts/delete-chart.sh
+      env:
+        HARBOR_HOST: ${{ vars.HARBOR_HOST }}
+        HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
+        HARBOR_PASSWORD: ${{ secrets.HARBOR_PASSWORD }}
+        CHART_VERSION: ${{ env.CHART_VERSION }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        REPO_NAME: "charts%252Fsample-chart"
     - name: Cleanup Promoted Chart
       run: |
         bash scripts/delete-chart.sh

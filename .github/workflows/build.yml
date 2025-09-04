@@ -21,7 +21,7 @@ jobs:
       uses: ./helm-publish
       with:
         chart-path: ./testdata/sample-chart
-        repo-host: oci://${{ secrets.HARBOR_HOST }}/charts
+        repo-host: oci://${{ vars.HARBOR_HOST }}/charts
         repo-user: ${{ secrets.HARBOR_USERNAME }}
         repo-password: ${{ secrets.HARBOR_PASSWORD }}
         version: '0.0.2'

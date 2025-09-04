@@ -123,4 +123,3 @@ jobs:
       with:
         jobs: 'test-publish-action,test-promote-action'
         github-token: ${{ secrets.GITHUB_TOKEN }}
-

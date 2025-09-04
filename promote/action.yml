@@ -74,9 +74,7 @@ runs:
       uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4.3.1
 
     - name: Install yq
-      uses: mikefarah/yq@bbdd97482f2d439126582a59689eb1c855944955 # v4.44.3
-      with:
-        cmd: 'yq --version'
+      uses: frenck/action-setup-yq@v1.0.2
 
     - name: Login to Helm registry
       shell: bash

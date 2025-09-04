@@ -35,7 +35,7 @@ inputs:
     required: false
     default: 'true'
   custom-docker-image-patch-script:
-    description: 'Custom script to patch the version of the docker image(s) in the chart. Provide a reference to a script file in the repository. The location must be an absolute path. The script will be executed in the directory of the Helm chart. E.g. `${{ github.workspace }}/scripts/promote_patch_image_script.sh`'
+    description: 'Custom script to patch the version of the docker image(s) in the chart. Provide a reference to a script file in the repository. The location must be an absolute path. The script will be executed in the directory of the Helm chart. E.g. `${{{{ github.workspace }}}}/scripts/promote_patch_image_script.sh`'
     required: false
     default: ''
   target-docker-image-version:

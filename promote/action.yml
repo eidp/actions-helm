@@ -76,16 +76,11 @@ runs:
     - name: Install yq
       uses: frenck/action-setup-yq@v1.0.2
 
-    - name: Login to Helm registry
+    - name: Login to registry
       shell: bash
       if: ${{ inputs.repo-user != '' && inputs.repo-password != '' }}
       run: |
-        echo "::group::Registry login"
-        # Extract registry host from chart URL
-        REGISTRY_HOST=$(echo "${{ inputs.chart }}" | cut -d'/' -f1)
-        echo "Logging into registry: $REGISTRY_HOST"
-        echo '${{ inputs.repo-password }}' | helm registry login -u '${{ inputs.repo-user }}' --password-stdin "$REGISTRY_HOST"
-        echo "::endgroup::"
+        echo '${{ inputs.repo-password }}' | helm registry login -u '${{ inputs.repo-user }}' --password-stdin '${{ inputs.repo-host }}'
 
     - name: Pull and extract chart
       shell: bash

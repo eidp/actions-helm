@@ -212,9 +212,9 @@ runs:
 
         # Generate summary
         {
-          echo "# 🚀 Helm Chart Promoted"
+          echo "## 🚀 Helm Chart Promoted"
           echo ""
-          echo "## Chart Details"
+          echo "### Chart Details"
           echo "- **Chart Name**: \`$CHART_NAME\`"
           echo "- **Source Version**: \`$SOURCE_VERSION\`"
           echo "- **Target Version**: \`$TARGET_VERSION\`"
@@ -222,7 +222,7 @@ runs:
           echo "- **Published to**: \`${{ inputs.repo-host }}\`"
 
           echo ""
-          echo "## Changes Made"
+          echo "### Changes Made"
           if [ "${{ inputs.patch-docker-image }}" == "true" ]; then
             echo "- ✅ Docker image version patched"
             if [ -n "${{ inputs.target-docker-image-version }}" ]; then

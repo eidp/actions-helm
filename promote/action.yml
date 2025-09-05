@@ -1,0 +1,243 @@
+name: 'Helm Promote'
+description: |
+  Promote a Helm chart by pulling it from an OCI registry, updating versions, repackaging it, and publishing it to a target registry.
+  
+  Features:
+  - Pull Helm charts from OCI registries
+  - Update chart version and appVersion
+  - Patch Docker image versions in values.yaml
+  - Support for custom patching script
+  - Publish promoted chart to target registry
+  
+  The action supports authentication to a Helm registry. If `repo-user` and `repo-password` are provided, 
+  Authentication is optional for public registries.
+
+  A Custom patch script can be provided and will be executed in the chart directory context to be able to provide custom chart version / image tag patching logic.
+  The promoted chart is published to the target registry after packaging.
+
+author: EIDP
+
+inputs:
+  chart:
+    description: 'OCI path of chart to retag. E.g. oci://ghcr.io/owner/repo/chart'
+    required: true
+    default: ''
+  source-version:
+    description: 'The source chart version.'
+    required: false
+    default: ''
+  target-version:
+    description: 'The target chart version.'
+    required: false
+    default: ''
+  patch-docker-image:
+    description: 'Whether to patch the docker image version in the chart.'
+    required: false
+    default: 'true'
+  custom-docker-image-patch-script:
+    description: 'Custom script to patch the version of the docker image(s) in the chart. Provide a reference to a script file in the repository. The location must be an absolute path (e.g. using the `github.workspace` context. The script will be executed in the directory of the Helm chart.'
+    required: false
+    default: ''
+  target-docker-image-version:
+    description: 'The target docker image version.'
+    required: false
+    default: ''
+  target-docker-image-digest:
+    description: 'The target docker image sha256 digest.'
+    required: false
+    default: ''
+  package-args:
+    description: 'Additional arguments to pass to the `helm package` command.'
+    required: false
+    default: ''
+  repo-host:
+    description: 'URL of target registry to publish the promoted Chart to.'
+    required: true
+    default: ''
+  repo-user:
+    description: 'Username for the registry.'
+    required: false
+    default: ''
+  repo-password:
+    description: 'Password for the registry.'
+    required: false
+    default: ''
+  push-args:
+    description: 'Additional arguments to pass to the `helm push` command.'
+    required: false
+    default: ''
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install Helm
+      uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4.3.1
+
+    - name: Install yq
+      uses: frenck/action-setup-yq@v1.0.2
+
+    - name: Login to registry
+      shell: bash
+      if: ${{ inputs.repo-user != '' && inputs.repo-password != '' }}
+      run: |
+        echo '${{ inputs.repo-password }}' | helm registry login -u '${{ inputs.repo-user }}' --password-stdin '${{ inputs.repo-host }}'
+
+    - name: Pull and extract chart
+      shell: bash
+      run: |
+        echo "::group::Pulling chart"
+        CHART=$(echo "${{ inputs.chart }}" | tr '[:upper:]' '[:lower:]')
+        echo "Pulling chart: $CHART"
+        echo "Source version: ${{ inputs.source-version }}"
+
+        # Create working directory
+        mkdir -p "${{ github.workspace }}/untarred"
+
+        # Pull chart
+        helm pull "$CHART" --version "${{ inputs.source-version }}" --untar --untardir "${{ github.workspace }}/untarred"
+
+        # Get chart name from URL
+        CHART_NAME=$(echo "$CHART" | awk -F/ '{print $NF}')
+        echo "chart-name=$CHART_NAME" >> $GITHUB_ENV
+        echo "chart-dir=${{ github.workspace }}/untarred/$CHART_NAME" >> $GITHUB_ENV
+        echo "Chart name: $CHART_NAME"
+        echo "Chart directory: ${{ github.workspace }}/untarred/$CHART_NAME"
+        echo "::endgroup::"
+
+    - name: Update chart version
+      shell: bash
+      run: |
+        echo "::group::Updating chart version"
+        cd "${{ env.chart-dir }}"
+
+        if [ -n "${{ inputs.target-version }}" ]; then
+          echo "Updating chart version to: ${{ inputs.target-version }}"
+          yq eval -i '.version = "${{ inputs.target-version }}"' Chart.yaml
+        fi
+
+        echo "Current Chart.yaml version:"
+        yq eval '.version' Chart.yaml
+        echo "::endgroup::"
+
+    - name: Patch Docker image
+      shell: bash
+      if: ${{ inputs.patch-docker-image == 'true' }}
+      run: |
+        echo "::group::Patching Docker image"
+        cd "${{ env.chart-dir }}"
+
+        # Update appVersion if target docker image version is provided
+        if [ -n "${{ inputs.target-docker-image-version }}" ]; then
+          echo "Updating appVersion to: ${{ inputs.target-docker-image-version }}"
+          yq eval -i '.appVersion = "${{ inputs.target-docker-image-version }}"' Chart.yaml
+        fi
+
+        # Update image tag in values.yaml if both version and digest are provided
+        if [ -n "${{ inputs.target-docker-image-version }}" ] && [ -n "${{ inputs.target-docker-image-digest }}" ]; then
+          TARGET_IMAGE_VERSION="${{ inputs.target-docker-image-version }}@${{ inputs.target-docker-image-digest }}"
+          echo "Updating image tag to: $TARGET_IMAGE_VERSION"
+          yq eval -i '.image.tag = "'$TARGET_IMAGE_VERSION'"' values.yaml
+        elif [ -n "${{ inputs.target-docker-image-version }}" ]; then
+          echo "Updating image tag to: ${{ inputs.target-docker-image-version }}"
+          yq eval -i '.image.tag = "${{ inputs.target-docker-image-version }}"' values.yaml
+        fi
+
+        echo "Current appVersion:"
+        yq eval '.appVersion' Chart.yaml
+        echo "Current image tag:"
+        yq eval '.image.tag' values.yaml || echo "No image.tag found in values.yaml"
+        echo "::endgroup::"
+
+    - name: Run custom Docker image patch script
+      shell: bash
+      if: ${{ inputs.custom-docker-image-patch-script != '' }}
+      run: |
+        echo "::group::Running custom Docker image patch script"
+        cd "${{ env.chart-dir }}"
+
+        CUSTOM_SCRIPT="${{ inputs.custom-docker-image-patch-script }}"
+        if [ -f "$CUSTOM_SCRIPT" ]; then
+          echo "Custom Docker image patch script provided, executing: $CUSTOM_SCRIPT"
+          chmod +x "$CUSTOM_SCRIPT"
+          "$CUSTOM_SCRIPT"
+        else
+          echo "⚠️ Custom script not found: $CUSTOM_SCRIPT"
+          exit 1
+        fi
+        echo "::endgroup::"
+
+    - name: Package chart
+      shell: bash
+      run: |
+        echo "::group::Packaging chart"
+        cd "${{ env.chart-dir }}"
+
+        echo "Packaging chart with args: ${{ inputs.package-args }}"
+        helm package . ${{ inputs.package-args }}
+
+        # Find the packaged chart
+        CHART_FILE=$(ls -t *.tgz | head -n1)
+        echo "✅ Packaged chart file: $CHART_FILE"
+
+        # Move to workspace root for publishing
+        CHART_PATH="${{ github.workspace }}/$CHART_FILE"
+        mv "$CHART_FILE" "$CHART_PATH"
+        echo "chart-path=$CHART_PATH" >> $GITHUB_ENV
+        echo "📦 Chart ready for publishing: $CHART_PATH"
+        echo "::endgroup::"
+
+    - name: Publish promoted chart
+      shell: bash
+      run: |
+        echo "::group::Publishing promoted chart"
+        echo "Publishing chart to: ${{ inputs.repo-host }}"
+        echo "Chart file: ${{ env.chart-path }}"
+        echo "Push args: ${{ inputs.push-args }}"
+
+        helm push '${{ env.chart-path }}' '${{ inputs.repo-host }}' ${{ inputs.push-args }}
+
+        echo "✅ Chart successfully published to ${{ inputs.repo-host }}"
+        echo "::endgroup::"
+
+    - name: Generate GitHub summary
+      shell: bash
+      run: |
+        echo "::group::Generating GitHub summary"
+
+        # Get chart info
+        CHART_NAME="${{ env.chart-name }}"
+        SOURCE_VERSION="${{ inputs.source-version }}"
+        TARGET_VERSION="${{ inputs.target-version }}"
+        CHART_PATH="${{ inputs.chart }}"
+
+        # Generate summary
+        {
+          echo "## 🚀 Helm Chart Promoted"
+          echo ""
+          echo "### Chart Details"
+          echo "- **Chart Name**: \`$CHART_NAME\`"
+          echo "- **Source Version**: \`$SOURCE_VERSION\`"
+          echo "- **Target Version**: \`$TARGET_VERSION\`"
+          echo "- **Source Chart**: \`$CHART_PATH\`"
+          echo "- **Published to**: \`${{ inputs.repo-host }}\`"
+
+          echo ""
+          echo "### Changes Made"
+          if [ "${{ inputs.patch-docker-image }}" == "true" ]; then
+            echo "- ✅ Docker image version patched"
+            if [ -n "${{ inputs.target-docker-image-version }}" ]; then
+              echo "  - Target image version: \`${{ inputs.target-docker-image-version }}\`"
+            fi
+            if [ -n "${{ inputs.target-docker-image-digest }}" ]; then
+              echo "  - Target image digest: \`${{ inputs.target-docker-image-digest }}\`"
+            fi
+          else
+            echo "- ⏭️ Docker image version not patched"
+          fi
+
+          if [ -n "${{ inputs.custom-docker-image-patch-script }}" ]; then
+            echo "- 🔧 Custom patch script executed: \`${{ inputs.custom-docker-image-patch-script }}\`"
+          fi
+        } >> $GITHUB_STEP_SUMMARY
+
+        echo "::endgroup::"

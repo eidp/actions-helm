@@ -1,23 +1,23 @@
 name: 'Helm Publish'
-description: 'Publish a Helm chart to a container registry.'
+description: 'Publish a Helm chart to a registry.'
 inputs:
-  repo_host:
-    description: 'URL of target container registry.'
+  repo-host:
+    description: 'URL of target registry.'
     required: true
     default: ''
-  repo_user:
-    description: 'Username for the container registry.'
+  repo-user:
+    description: 'Username for the registry.'
     required: false
     default: ''
-  repo_password:
-    description: 'Password for the container registry.'
+  repo-password:
+    description: 'Password for the registry.'
     required: false
     default: ''
-  chart_path:
+  chart-path:
     description: 'Path to the chart dir.'
     required: false
     default: './charts'
-  chart_output_path:
+  chart-output-path:
     description: 'Path to the chart dir.'
     required: false
     default: '${{ github.workspace }}/chart.tgz'
@@ -38,12 +38,29 @@ runs:
   steps:
     - name: Install Helm
       uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4.3.1
-    
+
+    - name: Extract chart information
+      id: extract-chart-info
+      shell: bash
+      run: |
+        CHART_NAME=$(helm show chart "${{ inputs.chart-path }}" | grep '^name:' | cut -d' ' -f2)
+        CHART_VERSION=$(helm show chart "${{ inputs.chart-path }}" | grep '^version:' | cut -d' ' -f2)
+
+        # Use override version if provided
+        if [ -n "${{ inputs.version }}" ]; then
+            CHART_VERSION="${{ inputs.version }}"
+        fi
+
+        echo "chart-name=$CHART_NAME" >> $GITHUB_OUTPUT
+        echo "chart-version=$CHART_VERSION" >> $GITHUB_OUTPUT
+        echo "Chart name: $CHART_NAME"
+        echo "Chart version: $CHART_VERSION"
+
     - name: Package Helm chart
       shell: bash
       run: |
         echo "::group::Packaging Helm chart"
-        echo "Packaging Helm chart from path: ${{ inputs.chart_path }}"
+        echo "Packaging Helm chart from path: ${{ inputs.chart-path }}"
 
         VERSION_ARG=""
         if [ -n "${{ inputs.version }}" ]; then
@@ -55,21 +72,47 @@ runs:
             APP_VERSION_ARG="--app-version ${{ inputs.app-version }}"
         fi
 
-        helm package --dependency-update "${{ inputs.chart_path }}" $VERSION_ARG $APP_VERSION_ARG 
+        helm package --dependency-update "${{ inputs.chart-path }}" $VERSION_ARG $APP_VERSION_ARG 
 
         CHART_FILE=$(ls -t *.tgz | head -n1)
         echo "✅ Packaged chart file: $CHART_FILE"
-        mv "$CHART_FILE" "${{ inputs.chart_output_path }}"
-        echo "📦 Chart moved to: ${{ inputs.chart_output_path }}"
+        mv "$CHART_FILE" "${{ inputs.chart-output-path }}"
+        echo "📦 Chart moved to: ${{ inputs.chart-output-path }}"
         echo "::endgroup::"
-      
+
     - name: Login to registry
       shell: bash
-      if: ${{ inputs.repo_user != '' && inputs.repo_password != '' }}
+      if: ${{ inputs.repo-user != '' && inputs.repo-password != '' }}
       run: |
-        echo '${{ inputs.repo_password }}' | helm registry login -u '${{ inputs.repo_user }}' --password-stdin '${{ inputs.repo_host }}'
-   
-    - name: Publish Helm chart to Harbor
+        echo '${{ inputs.repo-password }}' | helm registry login -u '${{ inputs.repo-user }}' --password-stdin '${{ inputs.repo-host }}'
+
+    - name: Publish Helm chart to registry
       shell: bash
       run: |
-        helm push '${{ inputs.chart_output_path }}' '${{ inputs.repo_host }}' "${{ inputs.args }}"
+        helm push '${{ inputs.chart-output-path }}' '${{ inputs.repo-host }}' "${{ inputs.args }}"
+
+    - name: Generate GitHub Summary
+      if: success()
+      shell: bash
+      run: |
+        CHART_NAME="${{ steps.extract-chart-info.outputs.chart-name }}"
+        CHART_VERSION="${{ steps.extract-chart-info.outputs.chart-version }}"
+        CHART_PATH="${{ inputs.chart-path }}"
+        REPO_HOST="${{ inputs.repo-host }}"
+        
+        # Create repository link to the chart
+        CHART_URL="https://github.com/${{ github.repository }}/tree/${{ github.ref_name }}/${CHART_PATH}"
+                
+        # Generate GitHub summary
+        cat >> $GITHUB_STEP_SUMMARY << EOF
+        ## 🚀 Helm Chart Published Successfully
+        
+        **Chart Details:**
+        - **Name:** \`${CHART_NAME}\`
+        - **Version:** \`${CHART_VERSION}\`
+        - **Source Path:** \`${CHART_PATH}\`
+
+        - 📦 Chart published to: \`${REPO_HOST}\`
+
+        **Publication Status:** ✅ Successfully published
+        EOF

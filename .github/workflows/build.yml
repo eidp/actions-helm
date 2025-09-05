@@ -22,10 +22,10 @@ jobs:
       id: helm-publish
       uses: ./helm-publish
       with:
-        chart_path: ./testdata/sample-chart
-        repo_host: oci://${{ vars.HARBOR_HOST }}/charts
-        repo_user: ${{ secrets.HARBOR_USERNAME }}
-        repo_password: ${{ secrets.HARBOR_PASSWORD }}
+        chart-path: ./testdata/sample-chart
+        repo-host: oci://${{ vars.HARBOR_HOST }}/charts
+        repo-user: ${{ secrets.HARBOR_USERNAME }}
+        repo-password: ${{ secrets.HARBOR_PASSWORD }}
         version: '${{ env.CHART_VERSION }}'
         app-version: '${{ env.CHART_VERSION }}'
     - name: Verify published Chart
@@ -40,7 +40,6 @@ jobs:
           echo "Chart is NOT published successfully"
           exit 1
         fi
-
     - name: Assert Action Status
       uses: nick-fields/assert-action@aa0067e01f0f6545c31755d6ca128c5a3a14f6bf # v2
       with:

@@ -1,6 +1,7 @@
 apiVersion: v2
 name: sample-chart
-description: A sample chart for Helm CI testing
-version: 0.0.1
-maintainers:
-  - name: "EIDP Platform Team"
+description: A sample Helm chart for testing
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+

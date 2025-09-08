@@ -24,7 +24,7 @@ _None_
 
 ```yaml
 - name: Helm Publish
-  uses: eidp/actions-helm/helm-publish@v0
+  uses: eidp/actions-helm/publish@v0
   with:
     # your inputs here
 ```

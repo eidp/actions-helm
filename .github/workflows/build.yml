@@ -20,7 +20,7 @@ jobs:
       uses: frenck/action-setup-yq@c4b5be8b4a215c536a41d436757d9feb92836d4f # v1.0.2
     - name: Run Helm Publish Action
       id: helm-publish
-      uses: ./helm-publish
+      uses: ./publish
       with:
         chart-path: ./testdata/sample-chart
         repo-host: oci://${{ vars.HARBOR_HOST }}/charts

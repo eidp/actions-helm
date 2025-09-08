@@ -35,7 +35,10 @@ The promoted chart is published to the target registry after packaging.
 
 ## 📤 Outputs
 
-_None_
+|   Name  |                       Description                      |
+|---------|--------------------------------------------------------|
+|`version`|           The version of the promoted chart.           |
+| `digest`|The digest of the promoted chart in the target registry.|
 
 ## 🚀 Usage
 

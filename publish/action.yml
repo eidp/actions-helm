@@ -1,5 +1,8 @@
 name: 'Helm Publish'
 description: 'Publish a Helm chart to a registry.'
+
+author: EIDP
+
 inputs:
   repo-host:
     description: 'URL of target registry.'
@@ -33,6 +36,14 @@ inputs:
     description: 'Additional arguments for helm push.'
     required: false
     default: ''
+outputs:
+  version:
+    description: 'The version of the published chart.'
+    value: ${{ steps.extract-chart-info.outputs.chart-version }}
+  digest:
+    description: 'The digest of the published chart in the target registry.'
+    value: ${{ steps.publish-chart.outputs.digest }}
+
 runs:
   using: 'composite'
   steps:
@@ -87,9 +98,17 @@ runs:
         echo '${{ inputs.repo-password }}' | helm registry login -u '${{ inputs.repo-user }}' --password-stdin '${{ inputs.repo-host }}'
 
     - name: Publish Helm chart to registry
+      id: publish-chart
       shell: bash
       run: |
-        helm push '${{ inputs.chart-output-path }}' '${{ inputs.repo-host }}' "${{ inputs.args }}"
+        # Publish the chart and capture output
+        PUSH_OUTPUT=$(helm push '${{ inputs.chart-output-path }}' '${{ inputs.repo-host }}' "${{ inputs.args }}" 2>&1)
+        echo "$PUSH_OUTPUT"
+        
+        # Extract digest from helm push output
+        DIGEST=$(echo "$PUSH_OUTPUT" | grep -o 'sha256:[a-f0-9]\{64\}' | head -n1 || echo "")
+
+        echo "digest=$DIGEST" >> $GITHUB_OUTPUT
 
     - name: Generate GitHub Summary
       if: success()
@@ -99,20 +118,21 @@ runs:
         CHART_VERSION="${{ steps.extract-chart-info.outputs.chart-version }}"
         CHART_PATH="${{ inputs.chart-path }}"
         REPO_HOST="${{ inputs.repo-host }}"
-        
+        DIGEST="${{ steps.publish-chart.outputs.digest }}"
+
         # Create repository link to the chart
         CHART_URL="https://github.com/${{ github.repository }}/tree/${{ github.ref_name }}/${CHART_PATH}"
-                
+
         # Generate GitHub summary
         cat >> $GITHUB_STEP_SUMMARY << EOF
         ## 🚀 Helm Chart Published Successfully
-        
+
         **Chart Details:**
         - **Name:** \`${CHART_NAME}\`
         - **Version:** \`${CHART_VERSION}\`
+        $(if [ -n "$DIGEST" ]; then echo "- **Digest:** \`${DIGEST}\`"; fi)
         - **Source Path:** \`${CHART_PATH}\`
-
-        - 📦 Chart published to: \`${REPO_HOST}\`
+        - **Published to:** \`${REPO_HOST}\`
 
         **Publication Status:** ✅ Successfully published
         EOF

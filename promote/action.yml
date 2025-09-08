@@ -66,6 +66,13 @@ inputs:
     description: 'Additional arguments to pass to the `helm push` command.'
     required: false
     default: ''
+outputs:
+  version:
+    description: 'The version of the promoted chart.'
+    value: ${{ inputs.target-version }}
+  digest:
+    description: 'The digest of the promoted chart in the target registry.'
+    value: ${{ steps.publish-chart.outputs.digest }}
 
 runs:
   using: 'composite'
@@ -187,6 +194,7 @@ runs:
         echo "::endgroup::"
 
     - name: Publish promoted chart
+      id: publish-chart
       shell: bash
       run: |
         echo "::group::Publishing promoted chart"
@@ -194,7 +202,14 @@ runs:
         echo "Chart file: ${{ env.chart-path }}"
         echo "Push args: ${{ inputs.push-args }}"
 
-        helm push '${{ env.chart-path }}' '${{ inputs.repo-host }}' ${{ inputs.push-args }}
+        # Publish the chart and capture output
+        PUSH_OUTPUT=$(helm push '${{ env.chart-path }}' '${{ inputs.repo-host }}' ${{ inputs.push-args }} 2>&1)
+        echo "$PUSH_OUTPUT"
+
+        # Extract digest from helm push output
+        DIGEST=$(echo "$PUSH_OUTPUT" | grep -o 'sha256:[a-f0-9]\{64\}' | head -n1 || echo "")
+
+        echo "digest=$DIGEST" >> $GITHUB_OUTPUT
 
         echo "✅ Chart successfully published to ${{ inputs.repo-host }}"
         echo "::endgroup::"
@@ -209,6 +224,7 @@ runs:
         SOURCE_VERSION="${{ inputs.source-version }}"
         TARGET_VERSION="${{ inputs.target-version }}"
         CHART_PATH="${{ inputs.chart }}"
+        DIGEST="${{ steps.publish-chart.outputs.digest }}"
 
         # Generate summary
         {
@@ -218,6 +234,9 @@ runs:
           echo "- **Chart Name**: \`$CHART_NAME\`"
           echo "- **Source Version**: \`$SOURCE_VERSION\`"
           echo "- **Target Version**: \`$TARGET_VERSION\`"
+          if [ -n "$DIGEST" ]; then
+            echo "- **Target Digest**: \`$DIGEST\`"
+          fi
           echo "- **Source Chart**: \`$CHART_PATH\`"
           echo "- **Published to**: \`${{ inputs.repo-host }}\`"
 

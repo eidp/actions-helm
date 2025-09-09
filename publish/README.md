@@ -18,7 +18,10 @@ Publish a Helm chart to a registry.
 
 ## 📤 Outputs
 
-_None_
+|   Name  |                       Description                       |
+|---------|---------------------------------------------------------|
+|`version`|           The version of the published chart.           |
+| `digest`|The digest of the published chart in the target registry.|
 
 ## 🚀 Usage
 

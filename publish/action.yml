@@ -1,21 +1,27 @@
 name: 'Helm Publish'
-description: 'Publish a Helm chart to a registry.'
+description: |
+  Publish a Helm chart to a registry.
+
+  Make sure that the workflow using this action has access to the Chart registry by setting up appropriate secrets.
+  By default a chart is published to the GitHub container registry. For authentication, the default `GITHUB_TOKEN` is used which has sufficient permissions.
+
+  This action supports overriding the chart version and appVersion during packaging.
 
 author: EIDP
 
 inputs:
   repo-host:
-    description: 'URL of target registry.'
+    description: 'URL of target registry. In case or an OCI registry, the host must start with "oci://".'
     required: true
-    default: ''
+    default: ghcr.io/${{ github.repository }}
   repo-user:
     description: 'Username for the registry.'
     required: false
-    default: ''
+    default: 'github'
   repo-password:
     description: 'Password for the registry.'
     required: false
-    default: ''
+    default: ${{ github.token }}
   chart-path:
     description: 'Path to the chart dir.'
     required: false
@@ -125,14 +131,14 @@ runs:
 
         # Generate GitHub summary
         cat >> $GITHUB_STEP_SUMMARY << EOF
-        ## 🚀 Helm Chart Published Successfully
+        ## 🚀 Helm chart published successfully
 
-        **Chart Details:**
+        **Chart details:**
         - **Name:** \`${CHART_NAME}\`
         - **Version:** \`${CHART_VERSION}\`
         $(if [ -n "$DIGEST" ]; then echo "- **Digest:** \`${DIGEST}\`"; fi)
         - **Source Path:** \`${CHART_PATH}\`
         - **Published to:** \`${REPO_HOST}\`
 
-        **Publication Status:** ✅ Successfully published
+        **Publication status:** ✅ Successfully published
         EOF

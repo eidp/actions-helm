@@ -4,7 +4,7 @@
 Publish a Helm chart to a registry.
 
 Make sure that the workflow using this action has access to the Chart registry by setting up appropriate secrets.
-By default a chart is published to the GitHub container registry. For authentication, the default `GITHUB_TOKEN` is used which has sufficient permissions.
+By default a chart is published to the GitHub container registry. For authentication, the default `GITHUB_TOKEN` is used which by default has sufficient permissions to publish charts.
 
 This action supports overriding the chart version and appVersion during packaging.
 

@@ -6,14 +6,15 @@ Promote a Helm chart by pulling it from an OCI registry, updating versions, repa
 Features:
 - Pull Helm charts from OCI registries
 - Update chart version and appVersion
-- Patch Docker image versions in values.yaml
-- Support for custom patching script
+- Patch Docker image versions (image.tag) in values.yaml with provided docker image version and optionally digest
+- Support for custom image version patching script for advanced version/digest patching needs
 - Publish promoted chart to target registry
 
 The action supports authentication to a Helm registry. If `repo-user` and `repo-password` are provided, 
 Authentication is optional for public registries.
 
 A Custom patch script can be provided and will be executed in the chart directory context to be able to provide custom chart version / image tag patching logic.
+This can be useful for charts with multiple images or non-standard image tag locations.
 The promoted chart is published to the target registry after packaging.
 
 ## 🔧 Inputs

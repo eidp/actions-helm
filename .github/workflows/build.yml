@@ -23,7 +23,7 @@ jobs:
       uses: ./publish
       with:
         chart-path: ./testdata/sample-chart
-        repo-host: oci://${{ vars.HARBOR_HOST }}/charts
+        repo-url: oci://${{ vars.HARBOR_HOST }}/charts
         repo-user: ${{ secrets.HARBOR_USERNAME }}
         repo-password: ${{ secrets.HARBOR_PASSWORD }}
         version: '${{ env.CHART_VERSION }}'
@@ -67,7 +67,7 @@ jobs:
         patch-docker-image: 'true'
         target-docker-image-version: '1.16.0'
         custom-docker-image-patch-script: '${{ github.workspace }}/testdata/promote_custom_docker_image_patch.sh'
-        repo-host: oci://${{ vars.HARBOR_HOST }}/charts
+        repo-url: oci://${{ vars.HARBOR_HOST }}/charts
         repo-user: ${{ secrets.HARBOR_USERNAME }}
         repo-password: ${{ secrets.HARBOR_PASSWORD }}
     - name: Verify Promote Chart

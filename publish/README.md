@@ -12,7 +12,7 @@ This action supports overriding the chart version and appVersion during packagin
 
 |Name                |Description                                                                            |Required|Default                             |
 |--------------------|---------------------------------------------------------------------------------------|--------|------------------------------------|
-|`repo-host`         |URL of target registry. In case or an OCI registry, the host must start with "oci://". |Yes     |`ghcr.io/${{ github.repository }}`  |
+|`repo-url`          |URL of target registry. In case or an OCI registry, the host must start with "oci://". |Yes     |`ghcr.io/${{ github.repository }}`  |
 |`repo-user`         |Username for the registry.                                                             |No      |`github`                            |
 |`repo-password`     |Password for the registry.                                                             |No      |`${{ github.token }}`               |
 |`chart-path`        |Path to the chart dir.                                                                 |No      |`./charts`                          |

@@ -51,7 +51,7 @@ inputs:
     description: 'Additional arguments to pass to the `helm package` command.'
     required: false
     default: ''
-  repo-host:
+  repo-url:
     description: 'URL of target registry to publish the promoted Chart to.'
     required: true
     default: ''
@@ -88,7 +88,8 @@ runs:
       shell: bash
       if: ${{ inputs.repo-user != '' && inputs.repo-password != '' }}
       run: |
-        echo '${{ inputs.repo-password }}' | helm registry login -u '${{ inputs.repo-user }}' --password-stdin '${{ inputs.repo-host }}'
+        REPO_HOST=$(echo ${{ inputs.repo-url }} | awk -F[/:] '{print $4}')
+        echo '${{ inputs.repo-password }}' | helm registry login -u '${{ inputs.repo-user }}' --password-stdin "$REPO_HOST"
 
     - name: Pull and extract chart
       shell: bash
@@ -199,12 +200,12 @@ runs:
       shell: bash
       run: |
         echo "::group::Publishing promoted chart"
-        echo "Publishing chart to: ${{ inputs.repo-host }}"
+        echo "Publishing chart to: ${{ inputs.repo-url }}"
         echo "Chart file: ${{ env.chart-path }}"
         echo "Push args: ${{ inputs.push-args }}"
 
         # Publish the chart and capture output
-        PUSH_OUTPUT=$(helm push '${{ env.chart-path }}' '${{ inputs.repo-host }}' ${{ inputs.push-args }} 2>&1)
+        PUSH_OUTPUT=$(helm push '${{ env.chart-path }}' '${{ inputs.repo-url }}' ${{ inputs.push-args }} 2>&1)
         echo "$PUSH_OUTPUT"
 
         # Extract digest from helm push output
@@ -212,7 +213,7 @@ runs:
 
         echo "digest=$DIGEST" >> $GITHUB_OUTPUT
 
-        echo "✅ Chart successfully published to ${{ inputs.repo-host }}"
+        echo "✅ Chart successfully published to ${{ inputs.repo-url }}"
         echo "::endgroup::"
 
     - name: Generate GitHub summary
@@ -239,7 +240,7 @@ runs:
             echo "- **Target Digest**: \`$DIGEST\`"
           fi
           echo "- **Source Chart**: \`$CHART_PATH\`"
-          echo "- **Published to**: \`${{ inputs.repo-host }}\`"
+          echo "- **Published to**: \`${{ inputs.repo-url }}\`"
 
           echo ""
           echo "### Changes made"

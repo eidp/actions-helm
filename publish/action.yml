@@ -10,7 +10,7 @@ description: |
 author: EIDP
 
 inputs:
-  repo-host:
+  repo-url:
     description: 'URL of target registry. In case or an OCI registry, the host must start with "oci://".'
     required: true
     default: ghcr.io/${{ github.repository }}
@@ -101,14 +101,15 @@ runs:
       shell: bash
       if: ${{ inputs.repo-user != '' && inputs.repo-password != '' }}
       run: |
-        echo '${{ inputs.repo-password }}' | helm registry login -u '${{ inputs.repo-user }}' --password-stdin '${{ inputs.repo-host }}'
+        REPO_HOST=$(echo ${{ inputs.repo-url }} | awk -F[/:] '{print $4}')
+        echo '${{ inputs.repo-password }}' | helm registry login -u '${{ inputs.repo-user }}' --password-stdin "$REPO_HOST"
 
     - name: Publish Helm chart to registry
       id: publish-chart
       shell: bash
       run: |
         # Publish the chart and capture output
-        PUSH_OUTPUT=$(helm push '${{ inputs.chart-output-path }}' '${{ inputs.repo-host }}' "${{ inputs.args }}" 2>&1)
+        PUSH_OUTPUT=$(helm push '${{ inputs.chart-output-path }}' '${{ inputs.repo-url }}' "${{ inputs.args }}" 2>&1)
         echo "$PUSH_OUTPUT"
         
         # Extract digest from helm push output
@@ -123,7 +124,7 @@ runs:
         CHART_NAME="${{ steps.extract-chart-info.outputs.chart-name }}"
         CHART_VERSION="${{ steps.extract-chart-info.outputs.chart-version }}"
         CHART_PATH="${{ inputs.chart-path }}"
-        REPO_HOST="${{ inputs.repo-host }}"
+        REPO_URL="${{ inputs.repo-url }}"
         DIGEST="${{ steps.publish-chart.outputs.digest }}"
 
         # Create repository link to the chart
@@ -138,7 +139,7 @@ runs:
         - **Version:** \`${CHART_VERSION}\`
         $(if [ -n "$DIGEST" ]; then echo "- **Digest:** \`${DIGEST}\`"; fi)
         - **Source Path:** \`${CHART_PATH}\`
-        - **Published to:** \`${REPO_HOST}\`
+        - **Published to:** \`${REPO_URL}\`
 
         **Publication status:** ✅ Successfully published
         EOF

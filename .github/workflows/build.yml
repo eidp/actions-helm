@@ -15,7 +15,7 @@ jobs:
       CHART_VERSION: '0.0.2-build.${{ github.run_number }}'
     steps:
     - name: Checkout code
-      uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
     - name: Install yq
       uses: frenck/action-setup-yq@c4b5be8b4a215c536a41d436757d9feb92836d4f # v1.0.2
     - name: Run Helm Publish Action
@@ -56,7 +56,7 @@ jobs:
       ADDITIONAL_IMAGE_VERSION: '${{ github.sha }}@sha256:${{ github.sha }}'
     steps:
     - name: Checkout code
-      uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
     - name: Promote Chart
       id: promote
       uses: ./promote
@@ -88,7 +88,7 @@ jobs:
     needs: test-promote-action
     steps:
     - name: Checkout code
-      uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
     - name: Cleanup published Chart
       run: |
         bash scripts/delete-chart.sh

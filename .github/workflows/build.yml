@@ -41,7 +41,7 @@ jobs:
           exit 1
         fi
     - name: Assert Action Status
-      uses: nick-fields/assert-action@9d4e34b06ce426ffbec11d91e220b8a90fd36bdb # v3.0.1
+      uses: nick-fields/assert-action@0efd6166067d9c59d89c710fab4f79fb066f8985 # v4.0.1
       with:
         expected: success
         actual: ${{ steps.helm-publish.outcome }}

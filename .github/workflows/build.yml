@@ -10,7 +10,7 @@ on:
 
 jobs:
   test-publish-action:
-    runs-on: ubuntu-2404-x64-2core
+    runs-on: ubuntu-latest
     env:
       CHART_VERSION: '0.0.2-build.${{ github.run_number }}'
     steps:
@@ -48,7 +48,7 @@ jobs:
       continue-on-error: true
 
   test-promote-action:
-    runs-on: ubuntu-2404-x64-2core
+    runs-on: ubuntu-latest
     needs: test-publish-action
     env:
       CHART_VERSION: '0.0.2-release.${{ github.run_number }}'
@@ -84,7 +84,7 @@ jobs:
           exit 1
         fi
   cleanup:
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     needs: test-promote-action
     steps:
     - name: Checkout code
@@ -111,7 +111,7 @@ jobs:
         REPO_NAME: "charts%252Fsample-chart"
 
   check-workflow-status:
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       actions: read
